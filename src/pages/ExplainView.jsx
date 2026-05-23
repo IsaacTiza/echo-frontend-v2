@@ -5,6 +5,7 @@ import { ArrowLeft, BookOpen } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import useNoteStore from "../store/noteStore";
 import toast from "react-hot-toast";
+import useSettingsStore, { fontSizeMap } from "../store/settingsStore";
 
 const tones = [
   { value: "simple", label: "Simple" },
@@ -126,6 +127,7 @@ const ExplainView = () => {
   const [tone, setTone] = useState("simple");
   const [isLoadingExplanation, setIsLoadingExplanation] = useState(false);
   const [isNoteLoading, setIsNoteLoading] = useState(true);
+  const { fontSize, setFontSize } = useSettingsStore();
 
 useEffect(() => {
   let cleanup;
@@ -301,6 +303,41 @@ useEffect(() => {
           </button>
         ))}
       </div>
+      {/* Font size control */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "flex-end",
+          gap: 6,
+          marginBottom: 12,
+          marginRight: 26,
+        }}
+      >
+        {Object.entries(fontSizeMap).map(([key, val]) => (
+          <button
+            key={key}
+            onClick={() => setFontSize(key)}
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: 8,
+              border: "none",
+              cursor: "pointer",
+              fontWeight: 800,
+              fontSize: val.size - 6,
+              background:
+                fontSize === key
+                  ? "linear-gradient(135deg, #F95E08, #FE8118)"
+                  : "var(--color-muted)",
+              color:
+                fontSize === key ? "white" : "var(--color-muted-foreground)",
+            }}
+          >
+            A
+          </button>
+        ))}
+      </div>
 
       {/* Content */}
       <div style={{ padding: "0 24px" }}>
@@ -352,7 +389,7 @@ useEffect(() => {
                   <span
                     style={{
                       fontWeight: 700,
-                      fontSize: 14,
+                      fontSize: fontSizeMap[fontSize].size,
                       color: "var(--color-foreground)",
                     }}
                   >
@@ -361,7 +398,7 @@ useEffect(() => {
                 </div>
                 <div
                   style={{
-                    fontSize: 14,
+                    fontSize: fontSizeMap[fontSize].size,
                     color: "var(--color-foreground)",
                     lineHeight: 1.7,
                   }}
@@ -371,7 +408,7 @@ useEffect(() => {
                       h1: ({ children }) => (
                         <h1
                           style={{
-                            fontSize: 20,
+                            fontSize: fontSizeMap[fontSize].size,
                             fontWeight: 800,
                             color: "var(--color-foreground)",
                             margin: "16px 0 8px",
@@ -383,7 +420,7 @@ useEffect(() => {
                       h2: ({ children }) => (
                         <h2
                           style={{
-                            fontSize: 17,
+                            fontSize: fontSizeMap[fontSize].size,
                             fontWeight: 700,
                             color: "var(--color-foreground)",
                             margin: "14px 0 6px",
@@ -395,7 +432,7 @@ useEffect(() => {
                       h3: ({ children }) => (
                         <h3
                           style={{
-                            fontSize: 15,
+                            fontSize: fontSizeMap[fontSize].size,
                             fontWeight: 700,
                             color: "#F95E08",
                             margin: "12px 0 6px",
@@ -410,6 +447,7 @@ useEffect(() => {
                             margin: "8px 0",
                             lineHeight: 1.7,
                             color: "var(--color-foreground)",
+                            fontSize: fontSizeMap[fontSize].size,
                           }}
                         >
                           {children}

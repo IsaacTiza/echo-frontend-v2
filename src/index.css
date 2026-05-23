@@ -40,22 +40,32 @@
 
   html {
     font-family: "Onest Variable", sans-serif;
-    background-color: #FFFFFF;
-    color: #1C1B19;
+    background-color: var(--color-background);
+    color: var(--color-foreground);
     scroll-behavior: smooth;
+    transition: background-color 0.3s ease, color 0.3s ease;
   }
 
   body {
     min-height: 100dvh;
-    max-width: 100%;
+    /* max-width: 480px; */
     margin: 0 auto;
-    background-color: #FFFFFF;
+    background-color: var(--color-background);
     overflow-x: hidden;
+    transition: background-color 0.3s ease;
   }
 
   ::-webkit-scrollbar {
     display: none;
   }
+
+  /* Typography scale */
+  h1 { font-size: 28px; font-weight: 800; line-height: 1.2; letter-spacing: -0.5px; }
+  h2 { font-size: 22px; font-weight: 700; line-height: 1.3; letter-spacing: -0.3px; }
+  h3 { font-size: 18px; font-weight: 700; line-height: 1.4; }
+  h4 { font-size: 15px; font-weight: 600; line-height: 1.4; }
+  p  { font-size: 14px; line-height: 1.6; }
+  small { font-size: 12px; line-height: 1.5; }
 }
 
 @layer utilities {
@@ -79,7 +89,18 @@
   .no-scrollbar::-webkit-scrollbar {
     display: none;
   }
+
+  /* Smooth theme transitions */
+  .theme-transition,
+  .theme-transition * {
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease !important;
+  }
+
+  /* Text utilities */
+  .text-balance { text-wrap: balance; }
+  .text-pretty  { text-wrap: pretty;  }
 }
+
 /* Dark mode variable overrides */
 .dark {
   --color-background: #1C1B19;

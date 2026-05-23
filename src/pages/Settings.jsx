@@ -3,10 +3,12 @@ import { motion } from "framer-motion";
 import { LogOut, User, Shield, ChevronRight, Zap } from "lucide-react";
 import useAuthStore from "../store/authStore";
 import Navbar from "../components/Navbar";
+import useSettingsStore, { fontSizeMap } from "../store/settingsStore";
 
 const Settings = () => {
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
+  const { fontSize, setFontSize } = useSettingsStore();
 
   const dailyUsage = user?.dailyUsage || 0;
   const dailyLimit = 10;
@@ -56,7 +58,7 @@ const Settings = () => {
           transition={{ duration: 0.4, delay: 0.1 }}
           className="bg-card rounded-2xl p-5 card-shadow"
         >
-          <div className="flex items-center gap-3 mb-4">
+          <div className="flex items-center gap-3 mb-4 ">
             <div className="w-10 h-10 gradient-primary rounded-xl flex items-center justify-center">
               <Zap className="w-5 h-5 text-white" />
             </div>
@@ -68,7 +70,7 @@ const Settings = () => {
             </div>
           </div>
 
-          <div className="w-full h-3 bg-muted rounded-full mb-3">
+          <div className="w-full h-3 bg-muted rounded-full mb-3 theme-transition overflow-hidden">
             <motion.div
               initial={{ width: 0 }}
               animate={{ width: `${usagePercent}%` }}
@@ -95,6 +97,84 @@ const Settings = () => {
               </p>
             </div>
           )}
+        </motion.div>
+
+        {/* Font Size Card */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.2 }}
+          className="bg-card rounded-2xl p-5 card-shadow"
+        >
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 bg-muted rounded-xl flex items-center justify-center">
+              <span
+                style={{
+                  fontSize: 18,
+                  fontWeight: 800,
+                  color: "var(--color-foreground)",
+                }}
+              >
+                A
+              </span>
+            </div>
+            <div>
+              <p className="font-bold text-foreground">Reading Font Size</p>
+              <p className="text-xs text-muted-foreground">
+                For explanations and study content
+              </p>
+            </div>
+          </div>
+
+          <div style={{ display: "flex", gap: 8 }}>
+            {Object.entries(fontSizeMap).map(([key, val]) => (
+              <button
+                key={key}
+                onClick={() => setFontSize(key)}
+                style={{
+                  flex: 1,
+                  padding: "10px 4px",
+                  borderRadius: 12,
+                  border: "none",
+                  cursor: "pointer",
+                  fontWeight: 700,
+                  fontSize: val.size - 4,
+                  background:
+                    fontSize === key
+                      ? "linear-gradient(135deg, #F95E08, #FE8118)"
+                      : "var(--color-muted)",
+                  color:
+                    fontSize === key
+                      ? "white"
+                      : "var(--color-muted-foreground)",
+                  transition: "all 0.2s",
+                }}
+              >
+                A
+                <p
+                  style={{
+                    fontSize: 9,
+                    fontWeight: 600,
+                    marginTop: 2,
+                    opacity: 0.8,
+                  }}
+                >
+                  {val.label}
+                </p>
+              </button>
+            ))}
+          </div>
+
+          <p
+            style={{
+              marginTop: 12,
+              fontSize: fontSizeMap[fontSize].size,
+              color: "var(--color-muted-foreground)",
+              lineHeight: 1.6,
+            }}
+          >
+            This is how your explanations will look.
+          </p>
         </motion.div>
 
         {/* Menu Items */}

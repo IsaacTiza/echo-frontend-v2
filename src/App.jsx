@@ -28,6 +28,8 @@ const App = () => {
     document.documentElement.classList.toggle("dark", isDark);
   }, [isDark]);
   return (
+    <div className="theme-transition">
+  
     <Routes>
       {/* Public */}
       <Route path="/" element={<Landing />} />
@@ -108,6 +110,8 @@ const App = () => {
       {/* Fallback */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+  
+</div>
   );
 };
 
