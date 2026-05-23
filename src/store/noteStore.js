@@ -22,25 +22,25 @@ const useNoteStore = create((set, get) => ({
   },
 
   fetchNote: async (id) => {
-  // Already loaded — don't refetch
-  const current = get().currentNote;
-  if (current && current._id === id) {
-    set({ isLoading: false });
-    return current;
-  }
+    // Already loaded — don't refetch
+    const current = get().currentNote;
+    if (current && current._id === id) {
+      set({ isLoading: false });
+      return current;
+    }
 
-  set({ isLoading: true, error: null });
-  try {
-    const res = await api.get(`/notes/${id}`);
-    set({ currentNote: res.data.note, isLoading: false });
-    return res.data.note;
-  } catch (error) {
-    set({
-      error: error.response?.data?.message || "Failed to fetch note",
-      isLoading: false,
-    });
-  }
-},
+    set({ isLoading: true, error: null });
+    try {
+      const res = await api.get(`/notes/${id}`);
+      set({ currentNote: res.data.note, isLoading: false });
+      return res.data.note;
+    } catch (error) {
+      set({
+        error: error.response?.data?.message || "Failed to fetch note",
+        isLoading: false,
+      });
+    }
+  },
 
   createNote: async (formData) => {
     set({ isLoading: true, error: null });
@@ -75,7 +75,7 @@ const useNoteStore = create((set, get) => ({
   },
 
   // Poll processing status until complete or failed
-  pollProcessingStatus: async (noteId, onComplete) => {
+  pollProcessingStatus: (noteId, onComplete) => {
     set({ processingStatus: "pending" });
 
     const interval = setInterval(async () => {
@@ -91,10 +91,16 @@ const useNoteStore = create((set, get) => ({
       } catch {
         clearInterval(interval);
       }
-    }, 3000); // poll every 3 seconds
+    }, 3000);
 
-    // Safety: stop polling after 3 minutes regardless
-    setTimeout(() => clearInterval(interval), 180000);
+    // Stop after 3 minutes regardless
+    const timeout = setTimeout(() => clearInterval(interval), 180000);
+
+    // Return cleanup function so components can stop polling on unmount
+    return () => {
+      clearInterval(interval);
+      clearTimeout(timeout);
+    };
   },
 
   // Fetch explanation for a specific tone

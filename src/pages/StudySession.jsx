@@ -68,19 +68,29 @@ const StudySession = () => {
   const [questionCount, setQuestionCount] = useState(12);
   const [isNoteReady, setIsNoteReady] = useState(false);
 
-  useEffect(() => {
-    const load = async () => {
-      const note = await fetchNote(id);
-      if (!note) return;
+useEffect(() => {
+  let cleanup;
 
-      if (note.processingStatus === "pending" || note.processingStatus === "processing") {
-        pollProcessingStatus(id, () => setIsNoteReady(true));
-      } else {
-        setIsNoteReady(true);
-      }
-    };
-    load();
-  }, [id]);
+  const load = async () => {
+    const note = await fetchNote(id);
+    if (!note) return;
+
+    if (
+      note.processingStatus === "pending" ||
+      note.processingStatus === "processing"
+    ) {
+      cleanup = pollProcessingStatus(id, () => setIsNoteReady(true));
+    } else {
+      setIsNoteReady(true);
+    }
+  };
+
+  load();
+
+  return () => {
+    if (cleanup) cleanup();
+  };
+}, [id]);
 
   const handleModeSelect = async (selectedMode) => {
     setMode(selectedMode);

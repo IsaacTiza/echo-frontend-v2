@@ -127,41 +127,40 @@ const ExplainView = () => {
   const [isLoadingExplanation, setIsLoadingExplanation] = useState(false);
   const [isNoteLoading, setIsNoteLoading] = useState(true);
 
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const note = await fetchNote(id);
-        if (!note) return;
+useEffect(() => {
+  let cleanup;
 
-        // If processing is still running — show skeleton and poll
-        if (
-          note.processingStatus === "pending" ||
-          note.processingStatus === "processing"
-        ) {
-          pollProcessingStatus(id, async (status) => {
-            if (status === "complete") {
-              // Processing done — load the explanation
-              await loadExplanation("simple");
-            } else {
-              // Processing failed — try fetching anyway (Gemini fallback in controller)
-              await loadExplanation("simple");
-            }
-            setIsNoteLoading(false);
-          });
-          return; // keep skeleton showing while polling
-        }
+  const load = async () => {
+    try {
+      const note = await fetchNote(id);
+      if (!note) return;
 
-        // Processing already complete — load explanation directly
+      if (
+        note.processingStatus === "pending" ||
+        note.processingStatus === "processing"
+      ) {
+        cleanup = pollProcessingStatus(id, async (status) => {
+          if (status === "complete" || status === "failed") {
+            await loadExplanation("simple");
+          }
+          setIsNoteLoading(false);
+        });
+      } else {
         await loadExplanation("simple");
         setIsNoteLoading(false);
-      } catch {
-        toast.error("Failed to load note");
-        setIsNoteLoading(false);
       }
-    };
+    } catch {
+      toast.error("Failed to load note");
+      setIsNoteLoading(false);
+    }
+  };
 
-    load();
-  }, [id]);
+  load();
+
+  return () => {
+    if (cleanup) cleanup();
+  };
+}, [id]);
 
   const loadExplanation = async (selectedTone) => {
     setIsLoadingExplanation(true);

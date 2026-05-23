@@ -1,6 +1,6 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Home, PlusCircle, BookOpen, Settings, Sun, Moon } from "lucide-react";
+import { Home, BookOpen, Plus, Settings, Sun, Moon } from "lucide-react";
 import useThemeStore from "../store/themeStore";
 
 const Navbar = () => {
@@ -8,24 +8,16 @@ const Navbar = () => {
   const navigate = useNavigate();
   const { isDark, toggleTheme } = useThemeStore();
 
-  const bg = isDark ? "#2C2B28" : "#FFFFFF";
-  const border = isDark ? "#3C3B38" : "#E7E5E4";
-  const activeColor = "#F95E08";
-  const inactiveColor = isDark ? "#A8A29E" : "#78716C";
-
   const navItems = [
     { icon: Home, label: "Home", path: "/dashboard" },
-    { icon: BookOpen, label: "Study", path: "/history" },
-    { icon: PlusCircle, label: "Add", path: "/notes/new", isAdd: true },
-    { icon: isDark ? Sun : Moon, label: "Theme", path: null, isTheme: true },
+    { icon: BookOpen, label: "History", path: "/history" },
+    { isAdd: true, icon: Plus, label: "New", path: "/notes/new" },
+    { icon: isDark ? Sun : Moon, label: isDark ? "Light" : "Dark", isTheme: true },
     { icon: Settings, label: "Settings", path: "/settings" },
   ];
 
   const handleNav = (item) => {
-    if (item.isTheme) {
-      toggleTheme();
-      return;
-    }
+    if (item.isTheme) { toggleTheme(); return; }
     if (item.path) navigate(item.path);
   };
 
@@ -33,99 +25,150 @@ const Navbar = () => {
     <div
       style={{
         position: "fixed",
-        bottom: 0,
-        left: "50%",
-        transform: "translateX(-50%)",
-        width: "100%",
+        bottom: 21,
+        left: 0,
+        right: 0,
+        // width: "95%",
         // maxWidth: 480,
-        background: bg,
-        borderTop: `1px solid ${border}`,
-        paddingBottom: "env(safe-area-inset-bottom)",
+        display: "flex",
+        justifyContent: "center",
         zIndex: 50,
+        pointerEvents: "none",
       }}
     >
-      <div
+      <motion.div
+        initial={{ y: 20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.4, ease: "easeOut" }}
         style={{
           display: "flex",
           alignItems: "center",
           justifyContent: "space-around",
-          padding: "8px 8px 12px",
+          background: isDark ? "#1C1C1E" : "#F5F5F5",
+          width: "95%",
+          borderRadius: 999,
+          padding: "10px 20px",
+          gap: 4,
+          boxShadow: isDark
+            ? "0 8px 32px rgba(0,0,0,0.4)"
+            : "0 8px 32px rgba(0,0,0,0.12)",
+          pointerEvents: "all",
         }}
       >
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = item.path && location.pathname === item.path;
 
-          return (
-            <button
-              key={item.label}
-              onClick={() => handleNav(item)}
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                gap: 4,
-                minWidth: 56,
-                background: "none",
-                border: "none",
-                cursor: "pointer",
-                padding: 0,
-              }}
-            >
-              {item.isAdd ? (
+          if (item.isAdd) {
+            return (
+              <motion.button
+                key="add"
+                onClick={() => navigate(item.path)}
+                whileTap={{ scale: 0.88 }}
+                style={{
+                  width: 58,
+                  height: 58,
+                  borderRadius: 20,
+                  background: "rgba(255,255,255,0.07)",
+                  backdropFilter: "blur(20px)",
+                  WebkitBackdropFilter: "blur(20px)",
+                  border: "1px solid rgba(255,255,255,0.12)",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: "pointer",
+                  gap: 3,
+                  marginTop: -20,
+                  marginBottom: -20,
+                  marginLeft: 8,
+                  marginRight: 8,
+                  boxShadow:
+                    "0 4px 24px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.08)",
+                  flexShrink: 0,
+                }}
+              >
                 <div
                   style={{
-                    width: 48,
-                    height: 48,
-                    borderRadius: "50%",
+                    width: 28,
+                    height: 28,
+                    borderRadius: 10,
                     background: "linear-gradient(135deg, #F95E08, #FE8118)",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    marginTop: -8,
-                    boxShadow: "0 4px 12px rgba(249,94,8,0.4)",
+                    boxShadow: "0 2px 8px rgba(249,94,8,0.5)",
                   }}
                 >
-                  <Icon size={22} color="white" />
+                  <Icon size={18} color="white" strokeWidth={2.5} />
                 </div>
-              ) : (
-                <div style={{ position: "relative" }}>
-                  <Icon
-                    size={22}
-                    color={isActive ? activeColor : inactiveColor}
-                  />
-                  {isActive && (
-                    <motion.div
-                      layoutId="nav-dot"
-                      style={{
-                        position: "absolute",
-                        bottom: -4,
-                        left: "50%",
-                        transform: "translateX(-50%)",
-                        width: 4,
-                        height: 4,
-                        borderRadius: "50%",
-                        background: activeColor,
-                      }}
-                    />
-                  )}
-                </div>
-              )}
-              {!item.isAdd && (
                 <span
                   style={{
-                    fontSize: 10,
-                    fontWeight: 600,
-                    color: isActive ? activeColor : inactiveColor,
+                    fontSize: 9,
+                    fontWeight: 700,
+                    color: isActive
+                      ? "#F95E08"
+                      : isDark
+                        ? "rgba(255,255,255,0.55)"
+                        : "rgba(0,0,0,0.45)",
                   }}
                 >
                   {item.label}
                 </span>
-              )}
-            </button>
+              </motion.button>
+            );
+          }
+
+          return (
+            <motion.button
+              key={item.label}
+              onClick={() => handleNav(item)}
+              whileTap={{ scale: 0.82 }}
+              style={{
+                width: 48,
+                height: 48,
+                borderRadius: 14,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 3,
+                background: isActive ? "rgba(249,94,8,0.15)" : "transparent",
+                border: "none",
+                cursor: "pointer",
+                flexShrink: 0,
+                transition: "background 0.2s",
+              }}
+            >
+              <Icon
+                size={20}
+                color={
+                  isActive
+                    ? "#F95E08"
+                    : isDark
+                      ? "rgba(255,255,255,0.55)"
+                      : "rgba(0,0,0,0.45)"
+                }
+                strokeWidth={isActive ? 2.5 : 2}
+              />
+              <span
+                style={{
+                  fontSize: 9,
+                  fontWeight: 600,
+                  color: isActive
+                    ? "#F95E08"
+                    : isDark
+                      ? "rgba(255,255,255,0.45)"
+                      : "rgba(0,0,0,0.35)",
+                  transition: "color 0.2s",
+                }}
+              >
+                {item.label}
+              </span>
+            </motion.button>
           );
         })}
-      </div>
+      </motion.div>
     </div>
   );
 };
