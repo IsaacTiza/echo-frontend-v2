@@ -1,10 +1,9 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { motion } from "framer-motion";
-import { ArrowLeft, RefreshCw, BookOpen } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { ArrowLeft, BookOpen } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import useNoteStore from "../store/noteStore";
-import api from "../lib/api";
 import toast from "react-hot-toast";
 
 const tones = [
@@ -15,46 +14,164 @@ const tones = [
   { value: "bullet", label: "Bullets" },
 ];
 
+// Skeleton loader component
+const SkeletonBlock = ({ width = "100%", height = 16, style = {} }) => (
+  <div
+    style={{
+      width,
+      height,
+      borderRadius: 8,
+      background: "var(--color-muted)",
+      position: "relative",
+      overflow: "hidden",
+      ...style,
+    }}
+  >
+    <div
+      style={{
+        position: "absolute",
+        inset: 0,
+        background:
+          "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.06) 50%, transparent 100%)",
+        animation: "shimmer 1.5s infinite",
+      }}
+    />
+  </div>
+);
+
+const ExplanationSkeleton = () => (
+  <div
+    style={{
+      background: "var(--color-muted)",
+      borderRadius: 20,
+      padding: 20,
+      display: "flex",
+      flexDirection: "column",
+      gap: 12,
+    }}
+  >
+    {/* Header */}
+    <div
+      style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}
+    >
+      <div
+        style={{
+          width: 32,
+          height: 32,
+          borderRadius: 10,
+          background: "linear-gradient(135deg, #F95E08, #FE8118)",
+          opacity: 0.4,
+        }}
+      />
+      <SkeletonBlock width={140} height={14} />
+    </div>
+
+    {/* Processing message */}
+    <div
+      style={{
+        padding: "12px 16px",
+        borderRadius: 12,
+        background: "rgba(249, 94, 8, 0.08)",
+        border: "1px solid rgba(249, 94, 8, 0.2)",
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        marginBottom: 4,
+      }}
+    >
+      <div
+        style={{
+          width: 16,
+          height: 16,
+          borderRadius: "50%",
+          border: "2px solid #F95E08",
+          borderTop: "2px solid transparent",
+          animation: "spin 1s linear infinite",
+          flexShrink: 0,
+        }}
+      />
+      <p style={{ fontSize: 13, color: "#F95E08", fontWeight: 600, margin: 0 }}>
+        Echo is preparing your explanation...
+      </p>
+    </div>
+
+    {/* Skeleton lines */}
+    <SkeletonBlock height={14} />
+    <SkeletonBlock height={14} width="90%" />
+    <SkeletonBlock height={14} width="95%" />
+    <SkeletonBlock height={14} width="80%" />
+    <div style={{ marginTop: 8 }} />
+    <SkeletonBlock height={14} />
+    <SkeletonBlock height={14} width="85%" />
+    <SkeletonBlock height={14} width="92%" />
+    <div style={{ marginTop: 8 }} />
+    <SkeletonBlock height={14} width="70%" />
+    <SkeletonBlock height={14} />
+    <SkeletonBlock height={14} width="88%" />
+  </div>
+);
+
 const ExplainView = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { currentNote, fetchNote } = useNoteStore();
+  const {
+    currentNote,
+    fetchNote,
+    fetchExplanation,
+    pollProcessingStatus,
+    processingStatus,
+  } = useNoteStore();
 
   const [explanation, setExplanation] = useState("");
   const [tone, setTone] = useState("simple");
-  const [isLoading, setIsLoading] = useState(false);
-  const [hasLoaded, setHasLoaded] = useState(false);
+  const [isLoadingExplanation, setIsLoadingExplanation] = useState(false);
+  const [isNoteLoading, setIsNoteLoading] = useState(true);
 
   useEffect(() => {
     const load = async () => {
       try {
         const note = await fetchNote(id);
-        if (note?.tone) setTone(note.tone);
-        if (note?.explanation) {
-          setExplanation(note.explanation);
-          setHasLoaded(true);
-        } else {
-          await handleExplain(note?.tone || "simple");
+        if (!note) return;
+
+        // If processing is still running — show skeleton and poll
+        if (
+          note.processingStatus === "pending" ||
+          note.processingStatus === "processing"
+        ) {
+          pollProcessingStatus(id, async (status) => {
+            if (status === "complete") {
+              // Processing done — load the explanation
+              await loadExplanation("simple");
+            } else {
+              // Processing failed — try fetching anyway (Gemini fallback in controller)
+              await loadExplanation("simple");
+            }
+            setIsNoteLoading(false);
+          });
+          return; // keep skeleton showing while polling
         }
+
+        // Processing already complete — load explanation directly
+        await loadExplanation("simple");
+        setIsNoteLoading(false);
       } catch {
         toast.error("Failed to load note");
+        setIsNoteLoading(false);
       }
     };
+
     load();
   }, [id]);
 
-  const handleExplain = async (selectedTone) => {
-    setIsLoading(true);
+  const loadExplanation = async (selectedTone) => {
+    setIsLoadingExplanation(true);
     setExplanation("");
     try {
-      const res = await api.post(`/ai/explain/${id}`, {
-        tone: selectedTone || tone,
-      });
-      setExplanation(res.data.explanation);
-      setHasLoaded(true);
+      const result = await fetchExplanation(id, selectedTone);
+      setExplanation(result);
     } catch (error) {
-      const msg = error.response?.data?.message;
       const status = error.response?.status;
+      const msg = error.response?.data?.message;
 
       if (msg?.includes("Daily limit")) {
         toast.error("Daily AI limit reached. Come back tomorrow.", {
@@ -62,31 +179,28 @@ const ExplainView = () => {
           icon: "🔒",
         });
       } else if (status === 429) {
-        toast.error(
-          "AI is busy right now. Please wait a moment and try again.",
-          {
-            duration: 5000,
-            icon: "⏳",
-          },
-        );
-      } else if (status === 404) {
-        toast.error("Note not found. It may have been deleted.", {
-          duration: 4000,
+        toast.error("AI is busy right now. Please wait a moment.", {
+          duration: 5000,
+          icon: "⏳",
         });
       } else {
-        toast.error("Could not generate explanation. Please try again.", {
-          duration: 4000,
-        });
+        toast.error("Could not load explanation. Please try again.");
       }
     } finally {
-      setIsLoading(false);
+      setIsLoadingExplanation(false);
     }
   };
 
   const handleToneChange = (newTone) => {
+    if (isLoadingExplanation || isNoteLoading) return;
     setTone(newTone);
-    handleExplain(newTone);
+    loadExplanation(newTone);
   };
+
+  const isProcessing =
+    processingStatus === "pending" || processingStatus === "processing";
+
+  const showSkeleton = isNoteLoading || isProcessing || isLoadingExplanation;
 
   return (
     <div
@@ -132,45 +246,24 @@ const ExplainView = () => {
           >
             Understand
           </p>
-          <h1
-            style={{
-              fontSize: 17,
-              fontWeight: 700,
-              color: "var(--color-foreground)",
-              margin: 0,
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-            }}
-          >
-            {currentNote?.title}
-          </h1>
-        </div>
-        {hasLoaded && (
-          <button
-            onClick={() => handleExplain(tone)}
-            disabled={isLoading}
-            style={{
-              width: 40,
-              height: 40,
-              borderRadius: 12,
-              background: "var(--color-muted)",
-              border: "none",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <RefreshCw
-              size={20}
-              color="var(--color-foreground)"
+          {isNoteLoading ? (
+            <SkeletonBlock width={160} height={16} style={{ marginTop: 4 }} />
+          ) : (
+            <h1
               style={{
-                animation: isLoading ? "spin 1s linear infinite" : "none",
+                fontSize: 17,
+                fontWeight: 700,
+                color: "var(--color-foreground)",
+                margin: 0,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
               }}
-            />
-          </button>
-        )}
+            >
+              {currentNote?.title}
+            </h1>
+          )}
+        </div>
       </div>
 
       {/* Tone Selector */}
@@ -186,21 +279,23 @@ const ExplainView = () => {
           <button
             key={t.value}
             onClick={() => handleToneChange(t.value)}
-            disabled={isLoading}
+            disabled={showSkeleton}
             style={{
               flexShrink: 0,
               padding: "8px 16px",
               borderRadius: 999,
               border: "none",
-              cursor: "pointer",
+              cursor: showSkeleton ? "not-allowed" : "pointer",
               fontWeight: 600,
               fontSize: 13,
+              opacity: showSkeleton && tone !== t.value ? 0.5 : 1,
               background:
                 tone === t.value
                   ? "linear-gradient(135deg, #F95E08, #FE8118)"
                   : "var(--color-muted)",
               color:
                 tone === t.value ? "white" : "var(--color-muted-foreground)",
+              transition: "all 0.2s",
             }}
           >
             {t.label}
@@ -210,282 +305,204 @@ const ExplainView = () => {
 
       {/* Content */}
       <div style={{ padding: "0 24px" }}>
-        {isLoading ? (
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              padding: "80px 0",
-              gap: 16,
-            }}
-          >
-            <div
-              style={{
-                width: 48,
-                height: 48,
-                border: "4px solid var(--color-muted)",
-                borderTop: "4px solid #F95E08",
-                borderRadius: "50%",
-                animation: "spin 1s linear infinite",
-              }}
-            />
-            <p style={{ color: "var(--color-muted-foreground)", fontSize: 14 }}>
-              Echo is reading your note...
-            </p>
-          </div>
-        ) : explanation ? (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-          >
-            <div
-              style={{
-                background: "var(--color-muted)",
-                borderRadius: 20,
-                padding: 20,
-              }}
+        <AnimatePresence mode="wait">
+          {showSkeleton ? (
+            <motion.div
+              key="skeleton"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              <ExplanationSkeleton />
+            </motion.div>
+          ) : explanation ? (
+            <motion.div
+              key="explanation"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
             >
               <div
                 style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  marginBottom: 16,
+                  background: "var(--color-muted)",
+                  borderRadius: 20,
+                  padding: 20,
                 }}
               >
                 <div
                   style={{
-                    width: 32,
-                    height: 32,
-                    borderRadius: 10,
-                    background: "linear-gradient(135deg, #F95E08, #FE8118)",
                     display: "flex",
                     alignItems: "center",
-                    justifyContent: "center",
+                    gap: 8,
+                    marginBottom: 16,
                   }}
                 >
-                  <BookOpen size={16} color="white" />
+                  <div
+                    style={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: 10,
+                      background: "linear-gradient(135deg, #F95E08, #FE8118)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <BookOpen size={16} color="white" />
+                  </div>
+                  <span
+                    style={{
+                      fontWeight: 700,
+                      fontSize: 14,
+                      color: "var(--color-foreground)",
+                    }}
+                  >
+                    Echo's Explanation
+                  </span>
                 </div>
-                <span
+                <div
                   style={{
-                    fontWeight: 700,
                     fontSize: 14,
                     color: "var(--color-foreground)",
+                    lineHeight: 1.7,
                   }}
                 >
-                  Echo's Explanation
-                </span>
+                  <ReactMarkdown
+                    components={{
+                      h1: ({ children }) => (
+                        <h1
+                          style={{
+                            fontSize: 20,
+                            fontWeight: 800,
+                            color: "var(--color-foreground)",
+                            margin: "16px 0 8px",
+                          }}
+                        >
+                          {children}
+                        </h1>
+                      ),
+                      h2: ({ children }) => (
+                        <h2
+                          style={{
+                            fontSize: 17,
+                            fontWeight: 700,
+                            color: "var(--color-foreground)",
+                            margin: "14px 0 6px",
+                          }}
+                        >
+                          {children}
+                        </h2>
+                      ),
+                      h3: ({ children }) => (
+                        <h3
+                          style={{
+                            fontSize: 15,
+                            fontWeight: 700,
+                            color: "#F95E08",
+                            margin: "12px 0 6px",
+                          }}
+                        >
+                          {children}
+                        </h3>
+                      ),
+                      p: ({ children }) => (
+                        <p
+                          style={{
+                            margin: "8px 0",
+                            lineHeight: 1.7,
+                            color: "var(--color-foreground)",
+                          }}
+                        >
+                          {children}
+                        </p>
+                      ),
+                      strong: ({ children }) => (
+                        <strong
+                          style={{
+                            fontWeight: 700,
+                            color: "var(--color-foreground)",
+                          }}
+                        >
+                          {children}
+                        </strong>
+                      ),
+                      ul: ({ children }) => (
+                        <ul style={{ margin: "8px 0", paddingLeft: 20 }}>
+                          {children}
+                        </ul>
+                      ),
+                      ol: ({ children }) => (
+                        <ol style={{ margin: "8px 0", paddingLeft: 20 }}>
+                          {children}
+                        </ol>
+                      ),
+                      li: ({ children }) => (
+                        <li
+                          style={{
+                            margin: "4px 0",
+                            color: "var(--color-foreground)",
+                            lineHeight: 1.6,
+                          }}
+                        >
+                          {children}
+                        </li>
+                      ),
+                      hr: () => (
+                        <hr
+                          style={{
+                            border: "none",
+                            borderTop: "1px solid var(--color-border)",
+                            margin: "16px 0",
+                          }}
+                        />
+                      ),
+                      blockquote: ({ children }) => (
+                        <blockquote
+                          style={{
+                            borderLeft: "3px solid #F95E08",
+                            paddingLeft: 12,
+                            margin: "12px 0",
+                            color: "var(--color-muted-foreground)",
+                          }}
+                        >
+                          {children}
+                        </blockquote>
+                      ),
+                    }}
+                  >
+                    {explanation}
+                  </ReactMarkdown>
+                </div>
               </div>
-              <div
+
+              <button
+                onClick={() => navigate(`/notes/${id}/study`)}
                 style={{
-                  fontSize: 14,
-                  color: "var(--color-foreground)",
-                  lineHeight: 1.7,
-                }}
-              >
-                <ReactMarkdown
-                  components={{
-                    h1: ({ children }) => (
-                      <h1
-                        style={{
-                          fontSize: 20,
-                          fontWeight: 800,
-                          color: "var(--color-foreground)",
-                          margin: "16px 0 8px",
-                        }}
-                      >
-                        {children}
-                      </h1>
-                    ),
-                    h2: ({ children }) => (
-                      <h2
-                        style={{
-                          fontSize: 17,
-                          fontWeight: 700,
-                          color: "var(--color-foreground)",
-                          margin: "14px 0 6px",
-                        }}
-                      >
-                        {children}
-                      </h2>
-                    ),
-                    h3: ({ children }) => (
-                      <h3
-                        style={{
-                          fontSize: 15,
-                          fontWeight: 700,
-                          color: "#F95E08",
-                          margin: "12px 0 6px",
-                        }}
-                      >
-                        {children}
-                      </h3>
-                    ),
-                    p: ({ children }) => (
-                      <p
-                        style={{
-                          margin: "8px 0",
-                          lineHeight: 1.7,
-                          color: "var(--color-foreground)",
-                        }}
-                      >
-                        {children}
-                      </p>
-                    ),
-                    strong: ({ children }) => (
-                      <strong
-                        style={{
-                          fontWeight: 700,
-                          color: "var(--color-foreground)",
-                        }}
-                      >
-                        {children}
-                      </strong>
-                    ),
-                    em: ({ children }) => (
-                      <em
-                        style={{
-                          color: "var(--color-muted-foreground)",
-                          fontStyle: "italic",
-                        }}
-                      >
-                        {children}
-                      </em>
-                    ),
-                    ul: ({ children }) => (
-                      <ul style={{ margin: "8px 0", paddingLeft: 20 }}>
-                        {children}
-                      </ul>
-                    ),
-                    ol: ({ children }) => (
-                      <ol style={{ margin: "8px 0", paddingLeft: 20 }}>
-                        {children}
-                      </ol>
-                    ),
-                    li: ({ children }) => (
-                      <li
-                        style={{
-                          margin: "4px 0",
-                          color: "var(--color-foreground)",
-                          lineHeight: 1.6,
-                        }}
-                      >
-                        {children}
-                      </li>
-                    ),
-                    hr: () => (
-                      <hr
-                        style={{
-                          border: "none",
-                          borderTop: "1px solid var(--color-border)",
-                          margin: "16px 0",
-                        }}
-                      />
-                    ),
-                    blockquote: ({ children }) => (
-                      <blockquote
-                        style={{
-                          borderLeft: "3px solid #F95E08",
-                          paddingLeft: 12,
-                          margin: "12px 0",
-                          color: "var(--color-muted-foreground)",
-                        }}
-                      >
-                        {children}
-                      </blockquote>
-                    ),
-                  }}
-                >
-                  {explanation}
-                </ReactMarkdown>
-              </div>
-            </div>
-            <button
-              onClick={() => navigate(`/notes/${id}/study`)}
-              style={{
-                width: "100%",
-                marginTop: 16,
-                background: "var(--color-foreground)",
-                padding: "16px",
-                borderRadius: 16,
-                border: "none",
-                cursor: "pointer",
-                color: "var(--color-background)",
-                fontWeight: 700,
-                fontSize: 15,
-              }}
-            >
-              Test Yourself →
-            </button>
-          </motion.div>
-        ) : (
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              padding: "80px 0",
-              gap: 16,
-              textAlign: "center",
-            }}
-          >
-            <div
-              style={{
-                width: 64,
-                height: 64,
-                borderRadius: 20,
-                background: "linear-gradient(135deg, #F95E08, #FE8118)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <BookOpen size={32} color="white" />
-            </div>
-            <div>
-              <p
-                style={{
+                  width: "100%",
+                  marginTop: 16,
+                  background: "var(--color-foreground)",
+                  padding: "16px",
+                  borderRadius: 16,
+                  border: "none",
+                  cursor: "pointer",
+                  color: "var(--color-background)",
                   fontWeight: 700,
-                  fontSize: 18,
-                  color: "var(--color-foreground)",
+                  fontSize: 15,
                 }}
               >
-                Ready to explain
-              </p>
-              <p
-                style={{
-                  color: "var(--color-muted-foreground)",
-                  fontSize: 14,
-                  marginTop: 4,
-                }}
-              >
-                Pick a tone above to get started
-              </p>
-            </div>
-            <button
-              onClick={() => handleExplain(tone)}
-              style={{
-                background: "linear-gradient(135deg, #F95E08, #FE8118)",
-                padding: "14px 32px",
-                borderRadius: 16,
-                border: "none",
-                cursor: "pointer",
-                color: "white",
-                fontWeight: 700,
-                fontSize: 15,
-              }}
-            >
-              Explain This Note
-            </button>
-          </div>
-        )}
+                Test Yourself →
+              </button>
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
       </div>
 
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes shimmer {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(100%); }
+        }
       `}</style>
     </div>
   );

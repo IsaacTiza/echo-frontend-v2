@@ -6,6 +6,7 @@ const useNoteStore = create((set, get) => ({
   currentNote: null,
   isLoading: false,
   error: null,
+  processingStatus: null,
 
   fetchNotes: async () => {
     set({ isLoading: true, error: null });
@@ -21,18 +22,25 @@ const useNoteStore = create((set, get) => ({
   },
 
   fetchNote: async (id) => {
-    set({ isLoading: true, error: null });
-    try {
-      const res = await api.get(`/notes/${id}`);
-      set({ currentNote: res.data.note, isLoading: false });
-      return res.data.note;
-    } catch (error) {
-      set({
-        error: error.response?.data?.message || "Failed to fetch note",
-        isLoading: false,
-      });
-    }
-  },
+  // Already loaded — don't refetch
+  const current = get().currentNote;
+  if (current && current._id === id) {
+    set({ isLoading: false });
+    return current;
+  }
+
+  set({ isLoading: true, error: null });
+  try {
+    const res = await api.get(`/notes/${id}`);
+    set({ currentNote: res.data.note, isLoading: false });
+    return res.data.note;
+  } catch (error) {
+    set({
+      error: error.response?.data?.message || "Failed to fetch note",
+      isLoading: false,
+    });
+  }
+},
 
   createNote: async (formData) => {
     set({ isLoading: true, error: null });
@@ -62,6 +70,39 @@ const useNoteStore = create((set, get) => ({
       }));
     } catch (error) {
       set({ error: error.response?.data?.message || "Failed to delete note" });
+      throw error;
+    }
+  },
+
+  // Poll processing status until complete or failed
+  pollProcessingStatus: async (noteId, onComplete) => {
+    set({ processingStatus: "pending" });
+
+    const interval = setInterval(async () => {
+      try {
+        const res = await api.get(`/ai/status/${noteId}`);
+        const status = res.data.status;
+        set({ processingStatus: status });
+
+        if (status === "complete" || status === "failed") {
+          clearInterval(interval);
+          if (onComplete) onComplete(status);
+        }
+      } catch {
+        clearInterval(interval);
+      }
+    }, 3000); // poll every 3 seconds
+
+    // Safety: stop polling after 3 minutes regardless
+    setTimeout(() => clearInterval(interval), 180000);
+  },
+
+  // Fetch explanation for a specific tone
+  fetchExplanation: async (noteId, tone) => {
+    try {
+      const res = await api.post(`/ai/explain/${noteId}`, { tone });
+      return res.data.explanation;
+    } catch (error) {
       throw error;
     }
   },

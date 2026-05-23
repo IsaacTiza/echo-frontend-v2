@@ -73,7 +73,6 @@ const App = () => {
           </ProtectedRoute>
         }
       />
-      ;
       <Route
         path="/notes/:id/study"
         element={
