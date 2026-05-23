@@ -524,7 +524,7 @@ useEffect(() => {
                   cursor: "pointer",
                   color: "var(--color-background)",
                   fontWeight: 700,
-                  fontSize: 15,
+                  fontSize: fontSizeMap[fontSize].size,
                 }}
               >
                 Test Yourself →
