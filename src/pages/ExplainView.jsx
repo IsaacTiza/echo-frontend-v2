@@ -6,6 +6,7 @@ import ReactMarkdown from "react-markdown";
 import useNoteStore from "../store/noteStore";
 import toast from "react-hot-toast";
 import useSettingsStore, { fontSizeMap } from "../store/settingsStore";
+import PageTransition from "../components/pageTransition";
 
 const tones = [
   { value: "simple", label: "Simple" },
@@ -15,7 +16,6 @@ const tones = [
   { value: "bullet", label: "Bullets" },
 ];
 
-// Skeleton loader component
 const SkeletonBlock = ({ width = "100%", height = 16, style = {} }) => (
   <div
     style={{
@@ -51,7 +51,6 @@ const ExplanationSkeleton = () => (
       gap: 12,
     }}
   >
-    {/* Header */}
     <div
       style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}
     >
@@ -67,7 +66,6 @@ const ExplanationSkeleton = () => (
       <SkeletonBlock width={140} height={14} />
     </div>
 
-    {/* Processing message */}
     <div
       style={{
         padding: "12px 16px",
@@ -96,7 +94,6 @@ const ExplanationSkeleton = () => (
       </p>
     </div>
 
-    {/* Skeleton lines */}
     <SkeletonBlock height={14} />
     <SkeletonBlock height={14} width="90%" />
     <SkeletonBlock height={14} width="95%" />
@@ -129,40 +126,40 @@ const ExplainView = () => {
   const [isNoteLoading, setIsNoteLoading] = useState(true);
   const { fontSize, setFontSize } = useSettingsStore();
 
-useEffect(() => {
-  let cleanup;
+  useEffect(() => {
+    let cleanup;
 
-  const load = async () => {
-    try {
-      const note = await fetchNote(id);
-      if (!note) return;
+    const load = async () => {
+      try {
+        const note = await fetchNote(id);
+        if (!note) return;
 
-      if (
-        note.processingStatus === "pending" ||
-        note.processingStatus === "processing"
-      ) {
-        cleanup = pollProcessingStatus(id, async (status) => {
-          if (status === "complete" || status === "failed") {
-            await loadExplanation("simple");
-          }
+        if (
+          note.processingStatus === "pending" ||
+          note.processingStatus === "processing"
+        ) {
+          cleanup = pollProcessingStatus(id, async (status) => {
+            if (status === "complete" || status === "failed") {
+              await loadExplanation("simple");
+            }
+            setIsNoteLoading(false);
+          });
+        } else {
+          await loadExplanation("simple");
           setIsNoteLoading(false);
-        });
-      } else {
-        await loadExplanation("simple");
+        }
+      } catch {
+        toast.error("Failed to load note");
         setIsNoteLoading(false);
       }
-    } catch {
-      toast.error("Failed to load note");
-      setIsNoteLoading(false);
-    }
-  };
+    };
 
-  load();
+    load();
 
-  return () => {
-    if (cleanup) cleanup();
-  };
-}, [id]);
+    return () => {
+      if (cleanup) cleanup();
+    };
+  }, [id]);
 
   const loadExplanation = async (selectedTone) => {
     setIsLoadingExplanation(true);
@@ -204,344 +201,358 @@ useEffect(() => {
   const showSkeleton = isNoteLoading || isProcessing || isLoadingExplanation;
 
   return (
-    <div
-      style={{
-        minHeight: "100dvh",
-        background: "var(--color-background)",
-        fontFamily: "Onest Variable, sans-serif",
-        paddingBottom: 40,
-      }}
-    >
-      {/* Header */}
+    <PageTransition>
       <div
         style={{
-          padding: "56px 24px 16px",
-          display: "flex",
-          alignItems: "center",
-          gap: 12,
+          minHeight: "100dvh",
+          background: "var(--color-background)",
+          fontFamily: "Onest Variable, sans-serif",
+          paddingBottom: 40,
         }}
       >
-        <button
-          onClick={() => navigate(-1)}
+        {/* Header */}
+        <div
           style={{
-            width: 40,
-            height: 40,
-            borderRadius: 12,
-            background: "var(--color-muted)",
-            border: "none",
-            cursor: "pointer",
+            padding: "56px 24px 16px",
             display: "flex",
             alignItems: "center",
-            justifyContent: "center",
+            gap: 12,
           }}
         >
-          <ArrowLeft size={20} color="var(--color-foreground)" />
-        </button>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <p
-            style={{
-              fontSize: 11,
-              color: "var(--color-muted-foreground)",
-              margin: 0,
-            }}
-          >
-            Understand
-          </p>
-          {isNoteLoading ? (
-            <SkeletonBlock width={160} height={16} style={{ marginTop: 4 }} />
-          ) : (
-            <h1
-              style={{
-                fontSize: 17,
-                fontWeight: 700,
-                color: "var(--color-foreground)",
-                margin: 0,
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {currentNote?.title}
-            </h1>
-          )}
-        </div>
-      </div>
-
-      {/* Tone Selector */}
-      <div
-        style={{
-          padding: "0 24px 20px",
-          display: "flex",
-          gap: 8,
-          overflowX: "auto",
-        }}
-      >
-        {tones.map((t) => (
           <button
-            key={t.value}
-            onClick={() => handleToneChange(t.value)}
-            disabled={showSkeleton}
+            onClick={() => navigate(-1)}
             style={{
-              flexShrink: 0,
-              padding: "8px 16px",
-              borderRadius: 999,
-              border: "none",
-              cursor: showSkeleton ? "not-allowed" : "pointer",
-              fontWeight: 600,
-              fontSize: 13,
-              opacity: showSkeleton && tone !== t.value ? 0.5 : 1,
-              background:
-                tone === t.value
-                  ? "linear-gradient(135deg, #F95E08, #FE8118)"
-                  : "var(--color-muted)",
-              color:
-                tone === t.value ? "white" : "var(--color-muted-foreground)",
-              transition: "all 0.2s",
-            }}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
-      {/* Font size control */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "flex-end",
-          gap: 6,
-          marginBottom: 12,
-          marginRight: 26,
-        }}
-      >
-        {Object.entries(fontSizeMap).map(([key, val]) => (
-          <button
-            key={key}
-            onClick={() => setFontSize(key)}
-            style={{
-              width: 32,
-              height: 32,
-              borderRadius: 8,
+              width: 40,
+              height: 40,
+              borderRadius: 12,
+              background: "var(--color-muted)",
               border: "none",
               cursor: "pointer",
-              fontWeight: 800,
-              fontSize: val.size - 6,
-              background:
-                fontSize === key
-                  ? "linear-gradient(135deg, #F95E08, #FE8118)"
-                  : "var(--color-muted)",
-              color:
-                fontSize === key ? "white" : "var(--color-muted-foreground)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
             }}
           >
-            A
+            <ArrowLeft size={20} color="var(--color-foreground)" />
           </button>
-        ))}
-      </div>
-
-      {/* Content */}
-      <div style={{ padding: "0 24px" }}>
-        <AnimatePresence mode="wait">
-          {showSkeleton ? (
-            <motion.div
-              key="skeleton"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p
+              style={{
+                fontSize: 11,
+                color: "var(--color-muted-foreground)",
+                margin: 0,
+              }}
             >
-              <ExplanationSkeleton />
-            </motion.div>
-          ) : explanation ? (
-            <motion.div
-              key="explanation"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-            >
-              <div
+              Understand
+            </p>
+            {isNoteLoading ? (
+              <SkeletonBlock width={160} height={16} style={{ marginTop: 4 }} />
+            ) : (
+              <h1
                 style={{
-                  background: "var(--color-muted)",
-                  borderRadius: 20,
-                  padding: 20,
+                  fontSize: 17,
+                  fontWeight: 700,
+                  color: "var(--color-foreground)",
+                  margin: 0,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
                 }}
+              >
+                {currentNote?.title}
+              </h1>
+            )}
+          </div>
+        </div>
+
+        {/* Tone Selector */}
+        <div
+          style={{
+            padding: "0 24px 20px",
+            display: "flex",
+            gap: 8,
+            overflowX: "auto",
+          }}
+        >
+          {tones.map((t) => (
+            <button
+              key={t.value}
+              onClick={() => handleToneChange(t.value)}
+              disabled={showSkeleton}
+              style={{
+                flexShrink: 0,
+                padding: "8px 16px",
+                borderRadius: 999,
+                border: "none",
+                cursor: showSkeleton ? "not-allowed" : "pointer",
+                fontWeight: 600,
+                fontSize: 13,
+                opacity: showSkeleton && tone !== t.value ? 0.5 : 1,
+                background: "transparent",
+                color:
+                  tone === t.value ? "white" : "var(--color-muted-foreground)",
+                position: "relative",
+                transition: "color 0.2s",
+              }}
+            >
+              {tone === t.value && (
+                <motion.div
+                  layoutId="tone-pill"
+                  transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    borderRadius: 999,
+                    background: "linear-gradient(135deg, #F95E08, #FE8118)",
+                    zIndex: 0,
+                  }}
+                />
+              )}
+              <span style={{ position: "relative", zIndex: 1 }}>{t.label}</span>
+            </button>
+          ))}
+        </div>
+
+        {/* Font size control */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "flex-end",
+            gap: 6,
+            marginBottom: 12,
+            marginRight: 26,
+          }}
+        >
+          {Object.entries(fontSizeMap).map(([key, val]) => (
+            <button
+              key={key}
+              onClick={() => setFontSize(key)}
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 8,
+                border: "none",
+                cursor: "pointer",
+                fontWeight: 800,
+                fontSize: val.size - 6,
+                background:
+                  fontSize === key
+                    ? "linear-gradient(135deg, #F95E08, #FE8118)"
+                    : "var(--color-muted)",
+                color:
+                  fontSize === key ? "white" : "var(--color-muted-foreground)",
+              }}
+            >
+              A
+            </button>
+          ))}
+        </div>
+
+        {/* Content */}
+        <div style={{ padding: "0 24px" }}>
+          <AnimatePresence mode="wait">
+            {showSkeleton ? (
+              <motion.div
+                key="skeleton"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+              >
+                <ExplanationSkeleton />
+              </motion.div>
+            ) : explanation ? (
+              <motion.div
+                key="explanation"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
               >
                 <div
                   style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                    marginBottom: 16,
+                    background: "var(--color-muted)",
+                    borderRadius: 20,
+                    padding: 20,
                   }}
                 >
                   <div
                     style={{
-                      width: 32,
-                      height: 32,
-                      borderRadius: 10,
-                      background: "linear-gradient(135deg, #F95E08, #FE8118)",
                       display: "flex",
                       alignItems: "center",
-                      justifyContent: "center",
+                      gap: 8,
+                      marginBottom: 16,
                     }}
                   >
-                    <BookOpen size={16} color="white" />
+                    <div
+                      style={{
+                        width: 32,
+                        height: 32,
+                        borderRadius: 10,
+                        background: "linear-gradient(135deg, #F95E08, #FE8118)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <BookOpen size={16} color="white" />
+                    </div>
+                    <span
+                      style={{
+                        fontWeight: 700,
+                        fontSize: fontSizeMap[fontSize].size,
+                        color: "var(--color-foreground)",
+                      }}
+                    >
+                      Echo's Explanation
+                    </span>
                   </div>
-                  <span
+                  <div
                     style={{
-                      fontWeight: 700,
                       fontSize: fontSizeMap[fontSize].size,
                       color: "var(--color-foreground)",
+                      lineHeight: 1.7,
                     }}
                   >
-                    Echo's Explanation
-                  </span>
+                    <ReactMarkdown
+                      components={{
+                        h1: ({ children }) => (
+                          <h1
+                            style={{
+                              fontSize: fontSizeMap[fontSize].size,
+                              fontWeight: 800,
+                              color: "var(--color-foreground)",
+                              margin: "16px 0 8px",
+                            }}
+                          >
+                            {children}
+                          </h1>
+                        ),
+                        h2: ({ children }) => (
+                          <h2
+                            style={{
+                              fontSize: fontSizeMap[fontSize].size,
+                              fontWeight: 700,
+                              color: "var(--color-foreground)",
+                              margin: "14px 0 6px",
+                            }}
+                          >
+                            {children}
+                          </h2>
+                        ),
+                        h3: ({ children }) => (
+                          <h3
+                            style={{
+                              fontSize: fontSizeMap[fontSize].size,
+                              fontWeight: 700,
+                              color: "#F95E08",
+                              margin: "12px 0 6px",
+                            }}
+                          >
+                            {children}
+                          </h3>
+                        ),
+                        p: ({ children }) => (
+                          <p
+                            style={{
+                              margin: "8px 0",
+                              lineHeight: 1.7,
+                              color: "var(--color-foreground)",
+                              fontSize: fontSizeMap[fontSize].size,
+                            }}
+                          >
+                            {children}
+                          </p>
+                        ),
+                        strong: ({ children }) => (
+                          <strong
+                            style={{
+                              fontWeight: 700,
+                              color: "var(--color-foreground)",
+                            }}
+                          >
+                            {children}
+                          </strong>
+                        ),
+                        ul: ({ children }) => (
+                          <ul style={{ margin: "8px 0", paddingLeft: 20 }}>
+                            {children}
+                          </ul>
+                        ),
+                        ol: ({ children }) => (
+                          <ol style={{ margin: "8px 0", paddingLeft: 20 }}>
+                            {children}
+                          </ol>
+                        ),
+                        li: ({ children }) => (
+                          <li
+                            style={{
+                              margin: "4px 0",
+                              color: "var(--color-foreground)",
+                              lineHeight: 1.6,
+                            }}
+                          >
+                            {children}
+                          </li>
+                        ),
+                        hr: () => (
+                          <hr
+                            style={{
+                              border: "none",
+                              borderTop: "1px solid var(--color-border)",
+                              margin: "16px 0",
+                            }}
+                          />
+                        ),
+                        blockquote: ({ children }) => (
+                          <blockquote
+                            style={{
+                              borderLeft: "3px solid #F95E08",
+                              paddingLeft: 12,
+                              margin: "12px 0",
+                              color: "var(--color-muted-foreground)",
+                            }}
+                          >
+                            {children}
+                          </blockquote>
+                        ),
+                      }}
+                    >
+                      {explanation}
+                    </ReactMarkdown>
+                  </div>
                 </div>
-                <div
+
+                <button
+                  onClick={() => navigate(`/notes/${id}/study`)}
                   style={{
+                    width: "100%",
+                    marginTop: 16,
+                    background: "var(--color-foreground)",
+                    padding: "16px",
+                    borderRadius: 16,
+                    border: "none",
+                    cursor: "pointer",
+                    color: "var(--color-background)",
+                    fontWeight: 700,
                     fontSize: fontSizeMap[fontSize].size,
-                    color: "var(--color-foreground)",
-                    lineHeight: 1.7,
                   }}
                 >
-                  <ReactMarkdown
-                    components={{
-                      h1: ({ children }) => (
-                        <h1
-                          style={{
-                            fontSize: fontSizeMap[fontSize].size,
-                            fontWeight: 800,
-                            color: "var(--color-foreground)",
-                            margin: "16px 0 8px",
-                          }}
-                        >
-                          {children}
-                        </h1>
-                      ),
-                      h2: ({ children }) => (
-                        <h2
-                          style={{
-                            fontSize: fontSizeMap[fontSize].size,
-                            fontWeight: 700,
-                            color: "var(--color-foreground)",
-                            margin: "14px 0 6px",
-                          }}
-                        >
-                          {children}
-                        </h2>
-                      ),
-                      h3: ({ children }) => (
-                        <h3
-                          style={{
-                            fontSize: fontSizeMap[fontSize].size,
-                            fontWeight: 700,
-                            color: "#F95E08",
-                            margin: "12px 0 6px",
-                          }}
-                        >
-                          {children}
-                        </h3>
-                      ),
-                      p: ({ children }) => (
-                        <p
-                          style={{
-                            margin: "8px 0",
-                            lineHeight: 1.7,
-                            color: "var(--color-foreground)",
-                            fontSize: fontSizeMap[fontSize].size,
-                          }}
-                        >
-                          {children}
-                        </p>
-                      ),
-                      strong: ({ children }) => (
-                        <strong
-                          style={{
-                            fontWeight: 700,
-                            color: "var(--color-foreground)",
-                          }}
-                        >
-                          {children}
-                        </strong>
-                      ),
-                      ul: ({ children }) => (
-                        <ul style={{ margin: "8px 0", paddingLeft: 20 }}>
-                          {children}
-                        </ul>
-                      ),
-                      ol: ({ children }) => (
-                        <ol style={{ margin: "8px 0", paddingLeft: 20 }}>
-                          {children}
-                        </ol>
-                      ),
-                      li: ({ children }) => (
-                        <li
-                          style={{
-                            margin: "4px 0",
-                            color: "var(--color-foreground)",
-                            lineHeight: 1.6,
-                          }}
-                        >
-                          {children}
-                        </li>
-                      ),
-                      hr: () => (
-                        <hr
-                          style={{
-                            border: "none",
-                            borderTop: "1px solid var(--color-border)",
-                            margin: "16px 0",
-                          }}
-                        />
-                      ),
-                      blockquote: ({ children }) => (
-                        <blockquote
-                          style={{
-                            borderLeft: "3px solid #F95E08",
-                            paddingLeft: 12,
-                            margin: "12px 0",
-                            color: "var(--color-muted-foreground)",
-                          }}
-                        >
-                          {children}
-                        </blockquote>
-                      ),
-                    }}
-                  >
-                    {explanation}
-                  </ReactMarkdown>
-                </div>
-              </div>
+                  Test Yourself →
+                </button>
+              </motion.div>
+            ) : null}
+          </AnimatePresence>
+        </div>
 
-              <button
-                onClick={() => navigate(`/notes/${id}/study`)}
-                style={{
-                  width: "100%",
-                  marginTop: 16,
-                  background: "var(--color-foreground)",
-                  padding: "16px",
-                  borderRadius: 16,
-                  border: "none",
-                  cursor: "pointer",
-                  color: "var(--color-background)",
-                  fontWeight: 700,
-                  fontSize: fontSizeMap[fontSize].size,
-                }}
-              >
-                Test Yourself →
-              </button>
-            </motion.div>
-          ) : null}
-        </AnimatePresence>
+        <style>{`
+          @keyframes spin { to { transform: rotate(360deg); } }
+          @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+          }
+        `}</style>
       </div>
-
-      <style>{`
-        @keyframes spin { to { transform: rotate(360deg); } }
-        @keyframes shimmer {
-          0% { transform: translateX(-100%); }
-          100% { transform: translateX(100%); }
-        }
-      `}</style>
-    </div>
+    </PageTransition>
   );
 };
 
