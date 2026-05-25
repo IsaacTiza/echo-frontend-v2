@@ -8,6 +8,15 @@ const useNoteStore = create((set, get) => ({
   error: null,
   processingStatus: null,
 
+  usedQuizIds: [],
+
+  addUsedQuizIds: (ids) =>
+    set((state) => ({
+      usedQuizIds: [...new Set([...state.usedQuizIds, ...ids.map(String)])],
+    })),
+
+  resetUsedQuizIds: () => set({ usedQuizIds: [] }),
+
   fetchNotes: async () => {
     set({ isLoading: true, error: null });
     try {
@@ -22,18 +31,26 @@ const useNoteStore = create((set, get) => ({
   },
 
   fetchNote: async (id) => {
-    // Already loaded — don't refetch
+    // Already loaded — sync processingStatus from cached note and return
     const current = get().currentNote;
     if (current && current._id === id) {
-      set({ isLoading: false });
+      set({
+        isLoading: false,
+        processingStatus: current.processingStatus ?? null,
+      });
       return current;
     }
 
     set({ isLoading: true, error: null });
     try {
       const res = await api.get(`/notes/${id}`);
-      set({ currentNote: res.data.note, isLoading: false });
-      return res.data.note;
+      const note = res.data.note;
+      set({
+        currentNote: note,
+        processingStatus: note.processingStatus ?? null,
+        isLoading: false,
+      });
+      return note;
     } catch (error) {
       set({
         error: error.response?.data?.message || "Failed to fetch note",
@@ -105,12 +122,8 @@ const useNoteStore = create((set, get) => ({
 
   // Fetch explanation for a specific tone
   fetchExplanation: async (noteId, tone) => {
-    try {
-      const res = await api.post(`/ai/explain/${noteId}`, { tone });
-      return res.data.explanation;
-    } catch (error) {
-      throw error;
-    }
+    const res = await api.post(`/ai/explain/${noteId}`, { tone });
+    return res.data.explanation;
   },
 
   setCurrentNote: (note) => set({ currentNote: note }),

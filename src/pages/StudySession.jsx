@@ -78,8 +78,15 @@ const ContentSkeleton = ({ type }) => (
 const StudySession = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { currentNote, fetchNote, processingStatus, pollProcessingStatus } =
-    useNoteStore();
+  const {
+    currentNote,
+    fetchNote,
+    processingStatus,
+    pollProcessingStatus,
+    usedQuizIds,
+    addUsedQuizIds,
+    resetUsedQuizIds,
+  } = useNoteStore();
 
   const [mode, setMode] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -126,8 +133,12 @@ const StudySession = () => {
         const res = await api.post(`/ai/flashcards/${id}`);
         setFlashcards(res.data.flashcards);
       } else {
-        const res = await api.post(`/ai/quiz/${id}`, { count: questionCount });
+        const res = await api.post(`/ai/quiz/${id}`, {
+          count: questionCount,
+          usedIds: usedQuizIds, // ← send what's been seen
+        });
         setQuiz(res.data.quiz);
+        addUsedQuizIds(res.data.quiz.map((q) => q._id)); // ← record this round
       }
     } catch (error) {
       const msg = error.response?.data?.message;

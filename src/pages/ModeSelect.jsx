@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, Brain, Zap, Download, FileText } from "lucide-react";
 import useNoteStore from "../store/noteStore";
 import api from "../lib/api";
@@ -10,13 +10,38 @@ import PageTransition from "../components/pageTransition";
 const ModeSelect = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { currentNote, fetchNote, isLoading } = useNoteStore();
+  const {
+    currentNote,
+    fetchNote,
+    isLoading,
+    fetchExplanation,
+    processingStatus,
+  } = useNoteStore();
   const [downloading, setDownloading] = useState(false);
-  const [downloadingExplanation, setDownloadingExplanation] = useState(false);
+  const [showToneModal, setShowToneModal] = useState(false);
+  const [selectedTones, setSelectedTones] = useState([]);
+  const [isDownloadingExplanation, setIsDownloadingExplanation] =
+    useState(false);
 
   useEffect(() => {
     fetchNote(id);
   }, [id]);
+
+  const tones = [
+    { value: "simple", label: "Simple" },
+    { value: "detailed", label: "Detailed" },
+    { value: "eli5", label: "ELI5" },
+    { value: "academic", label: "Academic" },
+    { value: "bullet", label: "Bullets" },
+  ];
+
+  const toggleTone = (toneValue) => {
+    setSelectedTones((prev) =>
+      prev.includes(toneValue)
+        ? prev.filter((t) => t !== toneValue)
+        : [...prev, toneValue],
+    );
+  };
 
   const handleDownloadNote = async () => {
     setDownloading(true);
@@ -50,31 +75,37 @@ const ModeSelect = () => {
     }
   };
 
-  const handleDownloadExplanation = () => {
-    if (!currentNote?.explanation) {
-      toast.error("No explanation yet. Go to Understand mode first.");
-      return;
-    }
-
-    setDownloadingExplanation(true);
+  const handleDownloadExplanation = async () => {
+    if (selectedTones.length === 0) return;
+    setIsDownloadingExplanation(true);
     try {
-      const content = `${currentNote.title}\n${"=".repeat(currentNote.title.length)}\n\n${currentNote.explanation}`;
+      const sections = await Promise.all(
+        selectedTones.map(async (t) => {
+          const label = tones.find((x) => x.value === t)?.label || t;
+          const text = await fetchExplanation(id, t);
+          return `=== ${label.toUpperCase()} ===\n\n${text}`;
+        }),
+      );
+      const content = `${currentNote?.title || "Note"}\nDownloaded from Echo\n\n${sections.join("\n\n" + "─".repeat(40) + "\n\n")}`;
       const blob = new Blob([content], { type: "text/plain" });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.setAttribute("download", `${currentNote.title} - Explanation.txt`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${currentNote?.title || "explanation"}.txt`;
+      a.click();
+      URL.revokeObjectURL(url);
+      setShowToneModal(false);
+      setSelectedTones([]);
       toast.success("Explanation downloaded");
     } catch {
-      toast.error("Failed to download explanation");
+      toast.error("Download failed. Please try again.");
     } finally {
-      setDownloadingExplanation(false);
+      setIsDownloadingExplanation(false);
     }
   };
+
+const isProcessingComplete = processingStatus === "complete";
+const isProcessingFailed = processingStatus === "failed";
 
   return (
     <PageTransition>
@@ -200,25 +231,28 @@ const ModeSelect = () => {
 
                 {/* Download Explanation */}
                 <button
-                  onClick={handleDownloadExplanation}
-                  disabled={downloadingExplanation || !currentNote?.explanation}
+                  onClick={() => {
+                    setSelectedTones([]);
+                    setShowToneModal(true);
+                  }}
+                  disabled={!isProcessingComplete}
                   className="w-full flex items-center gap-3 bg-card rounded-xl p-4 active:scale-95 transition-transform disabled:opacity-60"
                 >
                   <div
-                    className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${currentNote?.explanation ? "gradient-primary" : "bg-muted"}`}
+                    className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${isProcessingComplete ? "gradient-primary" : "bg-muted"}`}
                   >
                     <FileText className="w-5 h-5 text-white" />
                   </div>
                   <div className="flex-1 text-left">
                     <p className="text-sm font-semibold text-foreground">
-                      {downloadingExplanation
-                        ? "Downloading..."
-                        : "Download AI Explanation"}
+                      Download AI Explanation
                     </p>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      {currentNote?.explanation
-                        ? "Explanation ready"
-                        : "Generate explanation first"}
+                      {isProcessingComplete
+                        ? "Choose which versions to save"
+                        : isProcessingFailed
+                          ? "Note failed to process"
+                          : "Processing note..."}
                     </p>
                   </div>
                 </button>
@@ -227,6 +261,135 @@ const ModeSelect = () => {
           </div>
         </motion.div>
       </div>
+
+      {/* Tone Selection Modal */}
+      <AnimatePresence>
+        {showToneModal && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowToneModal(false)}
+              style={{
+                position: "fixed",
+                inset: 0,
+                background: "rgba(0,0,0,0.5)",
+                zIndex: 50,
+              }}
+            />
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", stiffness: 400, damping: 35 }}
+              style={{
+                position: "fixed",
+                bottom: 0,
+                left: 0,
+                right: 0,
+                background: "var(--color-background)",
+                borderRadius: "24px 24px 0 0",
+                padding: "24px 24px 40px",
+                zIndex: 51,
+              }}
+            >
+              <div
+                style={{
+                  width: 36,
+                  height: 4,
+                  borderRadius: 2,
+                  background: "var(--color-muted)",
+                  margin: "0 auto 24px",
+                }}
+              />
+
+              <h2 className="text-lg font-bold text-foreground mb-1">
+                Download Explanations
+              </h2>
+              <p className="text-sm text-muted-foreground mb-5">
+                Select the versions you want to save.
+              </p>
+
+              <div className="flex flex-col gap-3 mb-6">
+                {tones.map((t) => {
+                  const selected = selectedTones.includes(t.value);
+                  return (
+                    <button
+                      key={t.value}
+                      onClick={() => toggleTone(t.value)}
+                      className="flex items-center justify-between p-4 rounded-2xl transition-all active:scale-95"
+                      style={{
+                        border: `1.5px solid ${selected ? "#F95E08" : "var(--color-muted)"}`,
+                        background: selected
+                          ? "rgba(249, 94, 8, 0.08)"
+                          : "var(--color-muted)",
+                      }}
+                    >
+                      <span className="font-semibold text-sm text-foreground">
+                        {t.label}
+                      </span>
+                      <div
+                        style={{
+                          width: 20,
+                          height: 20,
+                          borderRadius: 6,
+                          background: selected
+                            ? "linear-gradient(135deg, #F95E08, #FE8118)"
+                            : "transparent",
+                          border: `2px solid ${selected ? "#F95E08" : "var(--color-muted-foreground)"}`,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        {selected && (
+                          <span
+                            style={{
+                              color: "white",
+                              fontSize: 11,
+                              fontWeight: 800,
+                            }}
+                          >
+                            ✓
+                          </span>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <button
+                onClick={handleDownloadExplanation}
+                disabled={
+                  selectedTones.length === 0 || isDownloadingExplanation
+                }
+                className="w-full py-4 rounded-2xl font-bold text-sm active:scale-95 disabled:opacity-60"
+                style={{
+                  background:
+                    selectedTones.length === 0
+                      ? "var(--color-muted)"
+                      : "linear-gradient(135deg, #F95E08, #FE8118)",
+                  color:
+                    selectedTones.length === 0
+                      ? "var(--color-muted-foreground)"
+                      : "white",
+                  border: "none",
+                  cursor:
+                    selectedTones.length === 0 || isDownloadingExplanation
+                      ? "not-allowed"
+                      : "pointer",
+                }}
+              >
+                {isDownloadingExplanation
+                  ? "Downloading..."
+                  : `Download${selectedTones.length > 0 ? ` (${selectedTones.length})` : ""}`}
+              </button>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </PageTransition>
   );
 };
