@@ -36,41 +36,47 @@ const NoteInput = () => {
   const [file, setFile] = useState(null);
   const [inputType, setInputType] = useState("text");
 
-  const handleFileChange = (e) => {
-    const selected = e.target.files[0];
-    if (!selected) return;
+ const handleFileChange = (e) => {
+   const selected = e.target.files[0];
+   if (!selected) return;
 
-    if (selected.size > 10 * 1024 * 1024) {
-      toast.error("File too large. Maximum size is 10MB", {
-        duration: 4000,
-        icon: "⚠️",
-      });
-      e.target.value = "";
-      return;
-    }
+   if (selected.size > 10 * 1024 * 1024) {
+     toast.error("File too large. Maximum size is 10MB", {
+       duration: 4000,
+       icon: "⚠️",
+     });
+     e.target.value = "";
+     return;
+   }
 
-    const allowedTypes = [
-      "application/pdf",
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-      "text/plain",
-      "image/jpeg",
-      "image/png",
-      "image/webp",
-    ];
+   const allowedTypes = [
+     "application/pdf",
+     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+     "text/plain",
+     "image/jpeg",
+     "image/png",
+     "image/webp",
+   ];
 
-    if (!allowedTypes.includes(selected.type)) {
-      toast.error("File type not supported. Use PDF, DOCX, TXT, JPG or PNG", {
-        duration: 4000,
-        icon: "⚠️",
-      });
-      e.target.value = "";
-      return;
-    }
+   if (!allowedTypes.includes(selected.type)) {
+     toast.error("File type not supported. Use PDF, DOCX, TXT, JPG or PNG", {
+       duration: 4000,
+       icon: "⚠️",
+     });
+     e.target.value = "";
+     return;
+   }
 
-    setFile(selected);
-    setInputType("file");
-    setContent("");
-  };
+   setFile(selected);
+   setInputType("file");
+   setContent("");
+
+   // Auto-fill title from filename if title is empty
+   if (!title.trim()) {
+     const nameWithoutExtension = selected.name.replace(/\.[^/.]+$/, "");
+     setTitle(nameWithoutExtension);
+   }
+ };
 
   const handleAddTag = (e) => {
     if (e.key === "Enter" && tagInput.trim()) {
@@ -112,7 +118,8 @@ const NoteInput = () => {
 
       const note = await createNote(formData);
       toast.success("Note created!");
-      navigate(`/notes/${note._id}/mode`);
+      // navigate(`/notes/${note._id}/mode`);
+      navigate(`/dashboard`);
     } catch {
       toast.error("Failed to create note");
     }

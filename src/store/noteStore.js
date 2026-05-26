@@ -1,6 +1,14 @@
 import { create } from "zustand";
 import api from "../lib/api";
 
+const getToken = () => {
+  try {
+    const raw = localStorage.getItem("auth-storage");
+    return JSON.parse(raw)?.state?.token ?? null;
+  } catch {
+    return null;
+  }
+};
 const useNoteStore = create((set, get) => ({
   notes: [],
   currentNote: null,
@@ -28,6 +36,15 @@ const useNoteStore = create((set, get) => ({
         isLoading: false,
       });
     }
+  },
+
+  retryNote: async (noteId) => {
+    await api.post(`/ai/retry/${noteId}`);
+    set((state) => ({
+      notes: state.notes.map((n) =>
+        n._id === noteId ? { ...n, processingStatus: "pending" } : n,
+      ),
+    }));
   },
 
   fetchNote: async (id) => {
@@ -90,34 +107,42 @@ const useNoteStore = create((set, get) => ({
       throw error;
     }
   },
+  updateNoteStatus: (noteId, status) =>
+    set((state) => ({
+      notes: state.notes.map((n) =>
+        n._id === noteId ? { ...n, processingStatus: status } : n,
+      ),
+    })),
 
   // Poll processing status until complete or failed
   pollProcessingStatus: (noteId, onComplete) => {
     set({ processingStatus: "pending" });
 
-    const interval = setInterval(async () => {
+    const token = getToken();
+    const baseUrl = import.meta.env.VITE_API_URL;
+    const source = new EventSource(
+      `${baseUrl}/ai/status/stream/${noteId}?token=${token}`,
+    );
+
+    source.onmessage = (event) => {
       try {
-        const res = await api.get(`/ai/status/${noteId}`);
-        const status = res.data.status;
+        const { status } = JSON.parse(event.data);
         set({ processingStatus: status });
 
         if (status === "complete" || status === "failed") {
-          clearInterval(interval);
+          source.close();
           if (onComplete) onComplete(status);
         }
       } catch {
-        clearInterval(interval);
+        source.close();
       }
-    }, 3000);
-
-    // Stop after 3 minutes regardless
-    const timeout = setTimeout(() => clearInterval(interval), 180000);
-
-    // Return cleanup function so components can stop polling on unmount
-    return () => {
-      clearInterval(interval);
-      clearTimeout(timeout);
     };
+
+    source.onerror = () => {
+      source.close();
+    };
+
+    return () => source.close();
   },
 
   // Fetch explanation for a specific tone

@@ -232,7 +232,7 @@ const Settings = () => {
           >
             <div className="flex items-center justify-between">
               <p className="text-sm text-muted-foreground">Version</p>
-              <p className="text-sm font-semibold text-foreground">1.0.0</p>
+              <p className="text-sm font-semibold text-foreground">2.0.0</p>
             </div>
             <div className="flex items-center justify-between mt-3">
               <p className="text-sm text-muted-foreground">Made with</p>

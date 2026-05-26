@@ -10,13 +10,15 @@ import PageTransition from "../components/pageTransition";
 const ModeSelect = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const {
-    currentNote,
-    fetchNote,
-    isLoading,
-    fetchExplanation,
-    processingStatus,
-  } = useNoteStore();
+const {
+  currentNote,
+  fetchNote,
+  isLoading,
+  fetchExplanation,
+  processingStatus,
+  pollProcessingStatus,
+  updateNoteStatus,
+} = useNoteStore();
   const [downloading, setDownloading] = useState(false);
   const [showToneModal, setShowToneModal] = useState(false);
   const [selectedTones, setSelectedTones] = useState([]);
@@ -26,6 +28,15 @@ const ModeSelect = () => {
   useEffect(() => {
     fetchNote(id);
   }, [id]);
+
+  useEffect(() => {
+    if (processingStatus === "processing" || processingStatus === "pending") {
+      const cleanup = pollProcessingStatus(id, (finalStatus) => {
+        updateNoteStatus(id, finalStatus);
+      });
+      return cleanup;
+    }
+  }, [processingStatus, id]);
 
   const tones = [
     { value: "simple", label: "Simple" },
