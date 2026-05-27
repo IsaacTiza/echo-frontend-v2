@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, User, Mail, Shield } from "lucide-react";
 import useAuthStore from "../store/authStore";
-import PageTransition from "../components/PageTransition";
+import PageTransition from "../components/pageTransition";
 const Account = () => {
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
