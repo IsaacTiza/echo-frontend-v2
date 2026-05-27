@@ -4,7 +4,8 @@ import { motion } from "framer-motion";
 import { ArrowLeft, CheckCircle, XCircle } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import PageTransition from "../components/pageTransition";
-import api from "../lib/api";
+// import api from "../lib/api";
+import useNoteStore from "../store/noteStore";
 import toast from "react-hot-toast";
 
 const MarkdownContent = ({ content }) => (
@@ -52,6 +53,7 @@ const Results = () => {
   const navigate = useNavigate();
   const { state } = useLocation();
   const { answers = [] } = state || {};
+  const { fetchFailedTopics } = useNoteStore();
 
   const [failedExplanation, setFailedExplanation] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -66,35 +68,35 @@ const Results = () => {
     if (!passed && failed.length > 0) fetchFailedExplanation();
   }, []);
 
-  const fetchFailedExplanation = async () => {
-    setIsLoading(true);
-    try {
-      const failedTopics = failed.map((a) => a.question);
-      const res = await api.post(`/ai/explain-failed/${id}`, { failedTopics });
-      setFailedExplanation(res.data.explanation);
-    } catch (error) {
-      const msg = error.response?.data?.message;
-      const status = error.response?.status;
+const fetchFailedExplanation = async () => {
+  setIsLoading(true);
+  try {
+    const failedTopics = failed.map((a) => a.question);
+    const explanation = await fetchFailedTopics(id, failedTopics);
+    setFailedExplanation(explanation);
+  } catch (error) {
+    const msg = error.response?.data?.message;
+    const status = error.response?.status;
 
-      if (msg?.includes("Daily limit")) {
-        toast.error("Daily AI limit reached. Review explanation unavailable.", {
-          duration: 5000,
-          icon: "🔒",
-        });
-      } else if (status === 429) {
-        toast.error("AI is busy. Review explanation unavailable this time.", {
-          duration: 4000,
-          icon: "⏳",
-        });
-      } else {
-        toast.error("Could not load review. Try again later.", {
-          duration: 4000,
-        });
-      }
-    } finally {
-      setIsLoading(false);
+    if (msg?.includes("Daily limit")) {
+      toast.error("Daily AI limit reached. Review explanation unavailable.", {
+        duration: 5000,
+        icon: "🔒",
+      });
+    } else if (status === 429) {
+      toast.error("AI is busy. Review explanation unavailable this time.", {
+        duration: 4000,
+        icon: "⏳",
+      });
+    } else {
+      toast.error("Could not load review. Try again later.", {
+        duration: 4000,
+      });
     }
-  };
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   const getScoreMessage = () => {
     if (score === 100) return "Perfect score! 🎉";

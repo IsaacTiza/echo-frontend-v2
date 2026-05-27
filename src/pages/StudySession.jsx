@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, RotateCcw } from "lucide-react";
 import useNoteStore from "../store/noteStore";
-import api from "../lib/api";
+// import api from "../lib/api";
 import PageTransition from "../components/pageTransition";
 import toast from "react-hot-toast";
 
@@ -78,15 +78,17 @@ const ContentSkeleton = ({ type }) => (
 const StudySession = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const {
-    currentNote,
-    fetchNote,
-    processingStatus,
-    pollProcessingStatus,
-    usedQuizIds,
-    addUsedQuizIds,
-    resetUsedQuizIds,
-  } = useNoteStore();
+const {
+  currentNote,
+  fetchNote,
+  processingStatus,
+  pollProcessingStatus,
+  usedQuizIds,
+  addUsedQuizIds,
+  resetUsedQuizIds,
+  fetchQuiz,
+  fetchFlashcards,
+} = useNoteStore();
 
   const [mode, setMode] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -125,45 +127,42 @@ const StudySession = () => {
     };
   }, [id]);
 
-  const handleModeSelect = async (selectedMode) => {
-    setMode(selectedMode);
-    setIsLoading(true);
-    try {
-      if (selectedMode === "flashcards") {
-        const res = await api.post(`/ai/flashcards/${id}`);
-        setFlashcards(res.data.flashcards);
-      } else {
-        const res = await api.post(`/ai/quiz/${id}`, {
-          count: questionCount,
-          usedIds: usedQuizIds, // ← send what's been seen
-        });
-        setQuiz(res.data.quiz);
-        addUsedQuizIds(res.data.quiz.map((q) => q._id)); // ← record this round
-      }
-    } catch (error) {
-      const msg = error.response?.data?.message;
-      const status = error.response?.status;
-
-      if (msg?.includes("Daily limit")) {
-        toast.error("Daily AI limit reached. Come back tomorrow.", {
-          duration: 5000,
-          icon: "🔒",
-        });
-      } else if (status === 429) {
-        toast.error("AI is busy right now. Wait a moment and try again.", {
-          duration: 5000,
-          icon: "⏳",
-        });
-      } else {
-        toast.error("Failed to load content. Please try again.", {
-          duration: 4000,
-        });
-      }
-      setMode(null);
-    } finally {
-      setIsLoading(false);
+const handleModeSelect = async (selectedMode) => {
+  setMode(selectedMode);
+  setIsLoading(true);
+  try {
+    if (selectedMode === "flashcards") {
+      const flashcards = await fetchFlashcards(id);
+      setFlashcards(flashcards);
+    } else {
+      const quiz = await fetchQuiz(id, questionCount, usedQuizIds);
+      setQuiz(quiz);
+      addUsedQuizIds(quiz.map((q) => q._id));
     }
-  };
+  } catch (error) {
+    const msg = error.response?.data?.message;
+    const status = error.response?.status;
+
+    if (msg?.includes("Daily limit")) {
+      toast.error("Daily AI limit reached. Come back tomorrow.", {
+        duration: 5000,
+        icon: "🔒",
+      });
+    } else if (status === 429) {
+      toast.error("AI is busy right now. Wait a moment and try again.", {
+        duration: 5000,
+        icon: "⏳",
+      });
+    } else {
+      toast.error("Failed to load content. Please try again.", {
+        duration: 4000,
+      });
+    }
+    setMode(null);
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   const handleNextCard = () => {
     if (cardIndex < flashcards.length - 1) {

@@ -197,7 +197,7 @@ const isProcessingFailed = processingStatus === "failed";
                 note. See how much you actually know.
               </p>
               <div className="flex flex-wrap gap-2 mt-4">
-                {["Flashcards", "MCQ Quiz", "12 Questions"].map((t) => (
+                {["Flashcards", "MCQ Quiz", "25 Questions"].map((t) => (
                   <span
                     key={t}
                     className="px-3 py-1 rounded-full bg-white/10 text-white text-xs font-medium"

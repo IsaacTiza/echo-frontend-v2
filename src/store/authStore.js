@@ -53,6 +53,10 @@ const useAuthStore = create(
 
       setUser: (user) => set({ user, isAuthenticated: true }),
       clearUser: () => set({ user: null, token: null, isAuthenticated: false }),
+      updateDailyUsage: (dailyUsage) =>
+        set((state) => ({
+          user: state.user ? { ...state.user, dailyUsage } : state.user,
+        })),
     }),
     {
       name: "echo-auth",

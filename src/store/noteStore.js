@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import useAuthStore from "./authStore";
 import api from "../lib/api";
 
 const getToken = () => {
@@ -148,6 +149,27 @@ const useNoteStore = create((set, get) => ({
   // Fetch explanation for a specific tone
   fetchExplanation: async (noteId, tone) => {
     const res = await api.post(`/ai/explain/${noteId}`, { tone });
+    useAuthStore.getState().updateDailyUsage(res.data.dailyUsage);
+    return res.data.explanation;
+  },
+
+  fetchQuiz: async (noteId, count, usedIds = []) => {
+    const res = await api.post(`/ai/quiz/${noteId}`, { count, usedIds });
+    useAuthStore.getState().updateDailyUsage(res.data.dailyUsage);
+    return res.data.quiz;
+  },
+
+  fetchFlashcards: async (noteId) => {
+    const res = await api.post(`/ai/flashcards/${noteId}`);
+    useAuthStore.getState().updateDailyUsage(res.data.dailyUsage);
+    return res.data.flashcards;
+  },
+
+  fetchFailedTopics: async (noteId, failedTopics) => {
+    const res = await api.post(`/ai/explain-failed/${noteId}`, {
+      failedTopics,
+    });
+    useAuthStore.getState().updateDailyUsage(res.data.dailyUsage);
     return res.data.explanation;
   },
 
