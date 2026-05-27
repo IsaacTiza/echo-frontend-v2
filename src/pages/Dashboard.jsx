@@ -447,53 +447,57 @@ const Dashboard = () => {
                         transition: { duration: 0.2 },
                       }}
                       transition={{ duration: 0.3, delay: i * 0.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      onClick={() => navigate(`/notes/${note._id}/mode`)}
-                      className="bg-card rounded-2xl p-4 flex items-center gap-4 card-shadow cursor-pointer"
+                      className="bg-card rounded-2xl flex items-center card-shadow overflow-hidden"
                     >
-                      <div
-                        className={`w-12 h-12 ${config.color} rounded-xl flex items-center justify-center flex-shrink-0`}
+                      {/* Clickable area — only this animates on tap */}
+                      <motion.div
+                        whileTap={{ scale: 0.97 }}
+                        onClick={() => navigate(`/notes/${note._id}/mode`)}
+                        className="flex items-center gap-4 flex-1 min-w-0 p-4 cursor-pointer"
                       >
-                        <Icon className="w-6 h-6 text-foreground" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-foreground truncate">
-                          {note.title}
-                        </p>
-                        <div className="flex items-center gap-2 mt-1 flex-wrap">
-                          <span className="text-xs text-muted-foreground">
-                            {config.label}
-                          </span>
-                          {isProcessing && (
-                            <>
-                              <span className="text-muted-foreground">·</span>
-                              <ProcessingBadge />
-                            </>
-                          )}
-                          {isFailed && (
-                            <>
-                              <span className="text-muted-foreground">·</span>
-                              <FailedBadge />
-                            </>
-                          )}
-                          {!isProcessing && !isFailed && isExplained && (
-                            <>
-                              <span className="text-muted-foreground">·</span>
-                              <ReadyBadge />
-                            </>
-                          )}
+                        <div
+                          className={`w-12 h-12 ${config.color} rounded-xl flex items-center justify-center flex-shrink-0`}
+                        >
+                          <Icon className="w-6 h-6 text-foreground" />
                         </div>
-                      </div>
-                      <div
-                        onPointerDown={(e) => e.stopPropagation()}
-                        onClick={(e) => e.stopPropagation()}
-                        className="flex items-center gap-2 flex-shrink-0"
-                      >
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-foreground truncate">
+                            {note.title}
+                          </p>
+                          <div className="flex items-center gap-2 mt-1 flex-wrap">
+                            <span className="text-xs text-muted-foreground">
+                              {config.label}
+                            </span>
+                            {isProcessing && (
+                              <>
+                                <span className="text-muted-foreground">·</span>
+                                <ProcessingBadge />
+                              </>
+                            )}
+                            {isFailed && (
+                              <>
+                                <span className="text-muted-foreground">·</span>
+                                <FailedBadge />
+                              </>
+                            )}
+                            {!isProcessing && !isFailed && isExplained && (
+                              <>
+                                <span className="text-muted-foreground">·</span>
+                                <ReadyBadge />
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </motion.div>
+
+                      {/* Buttons — sibling of animated area, completely isolated */}
+                      <div className="flex items-center gap-2 flex-shrink-0 pr-4">
                         {isFailed && (
                           <motion.button
                             type="button"
                             whileTap={{ scale: 0.8 }}
                             onClick={(e) => handleRetry(e, note._id)}
+                            style={{ cursor: "pointer" }}
                             className="w-9 h-9 flex items-center justify-center rounded-xl bg-muted"
                           >
                             <RotateCcw className="w-4 h-4 text-muted-foreground" />
@@ -503,6 +507,7 @@ const Dashboard = () => {
                           type="button"
                           whileTap={{ scale: 0.8 }}
                           onClick={(e) => handleDelete(e, note._id)}
+                          style={{ cursor: "pointer" }}
                           className="w-9 h-9 flex items-center justify-center rounded-xl bg-muted"
                         >
                           <Trash2 className="w-4 h-4 text-muted-foreground" />
