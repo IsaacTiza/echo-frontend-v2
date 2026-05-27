@@ -83,7 +83,7 @@ const Landing = () => {
                 width: 72,
                 height: 72,
                 borderRadius: 20,
-                background: "linear-gradient(135deg, #F95E08, #FE8118)",
+                background: "transparent",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -91,9 +91,11 @@ const Landing = () => {
                 boxShadow: "0 8px 24px rgba(249,94,8,0.3)",
               }}
             >
-              <span style={{ color: "white", fontSize: 32, fontWeight: 800 }}>
-                E
-              </span>
+              <img
+                src="/logo.svg"
+                alt="Echo"
+                style={{ width: "100%", height: "100%", borderRadius: 16  }}
+              />
             </div>
             <h1
               style={{
